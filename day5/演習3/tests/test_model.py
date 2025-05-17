@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 import pickle
 import time
+import json
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
@@ -16,6 +17,7 @@ from sklearn.pipeline import Pipeline
 DATA_PATH = os.path.join(os.path.dirname(__file__), "../data/Titanic.csv")
 MODEL_DIR = os.path.join(os.path.dirname(__file__), "../models")
 MODEL_PATH = os.path.join(MODEL_DIR, "titanic_model.pkl")
+MODEL_METRICS_PATH = os.path.join(MODEL_DIR, "model_metrics.json")
 
 
 @pytest.fixture
@@ -171,3 +173,32 @@ def test_model_reproducibility(sample_data, preprocessor):
     assert np.array_equal(
         predictions1, predictions2
     ), "モデルの予測結果に再現性がありません"
+
+
+def test_model_accuracy_not_degraded(train_model):
+    """モデルの精度が最低限の精度よりも悪化していないことを検証"""
+    model, X_test, y_test = train_model
+
+    # 予測と精度計算
+    y_pred = model.predict(X_test)
+    current_accuracy = accuracy_score(y_test, y_pred)
+    
+    # 前回の精度
+    previous_accuracy = 0.75 
+    
+    if os.path.exists(MODEL_METRICS_PATH):
+        try:
+            with open(MODEL_METRICS_PATH, 'r') as f:
+                metrics = json.load(f)
+                previous_accuracy = metrics.get('accuracy', previous_accuracy)
+        except (json.JSONDecodeError, FileNotFoundError):
+            # ファイルが存在しないか正しく読み込めない場合はデフォルト値を使用
+            pass
+    
+    # 現在の精度が前回以上であることを確認
+    assert current_accuracy >= previous_accuracy, f"モデル精度が悪化しています: 現在 {current_accuracy:.4f}, 以前 {previous_accuracy:.4f}"
+    
+    # 新しい精度を保存
+    os.makedirs(os.path.dirname(MODEL_METRICS_PATH), exist_ok=True)
+    with open(MODEL_METRICS_PATH, 'w') as f:
+        json.dump({'accuracy': float(current_accuracy)}, f)
