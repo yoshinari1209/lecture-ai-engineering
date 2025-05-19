@@ -186,14 +186,13 @@ def test_model_accuracy_not_degraded(train_model):
     # 前回の精度
     previous_accuracy = 0.75
 
-    if os.path.exists(MODEL_METRICS_PATH):
-        try:
-            with open(MODEL_METRICS_PATH, "r") as f:
-                metrics = json.load(f)
-                previous_accuracy = metrics.get("accuracy", previous_accuracy)
-        except (json.JSONDecodeError, FileNotFoundError):
-            # ファイルが存在しないか正しく読み込めない場合はデフォルト値を使用
-            pass
+    try:
+        with open(MODEL_METRICS_PATH, "r") as f:
+            metrics = json.load(f)
+            previous_accuracy = metrics.get("accuracy", previous_accuracy)
+    except (json.JSONDecodeError, FileNotFoundError):
+        # ファイルが存在しないか正しく読み込めない場合はデフォルト値を使用
+        pass
 
     # 現在の精度が前回以上であることを確認
     assert (
